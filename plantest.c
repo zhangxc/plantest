@@ -74,8 +74,6 @@ int main(int argc, char **argv)
 		}
 
 		v->i_tst ++;
-
-
 		if (v->i_tst > NB_OF(tseq) - 2) {
 			v->pass ++;
 			v->i_tst = 0;
@@ -92,7 +90,7 @@ int main(int argc, char **argv)
 void do_tick()
 {
 	sleep(1);
-	// check input to pause
+	// send a packet to report the status
 	// check the socket to see if comes the commands from the server
 }
 

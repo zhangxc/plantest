@@ -17,15 +17,4 @@ struct plantest_operations {
 	void (*update)(void);		/* final updates */
 };
 
-#define MALLOC_1M   1024 * 1024 * 1
-#define MALLOC_2M   1024 * 1024 * 2
-#define MALLOC_4M   1024 * 1024 * 4
-#define MALLOC_8M   1024 * 1024 * 8
-#define MALLOC_16M  1024 * 1024 * 16
-#define MALLOC_32M  1024 * 1024 * 32
-#define MALLOC_64M  1024 * 1024 * 64
-#define MALLOC_128M 1024 * 1024 * 128
-#define MALLOC_TEST MALLOC_32M
-
-
 #endif//__PTO_H__

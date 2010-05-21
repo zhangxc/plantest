@@ -17,6 +17,7 @@
 extern char clientid[];
 extern char *serverid;
 extern int netlog(int msgno);
+extern unsigned long get_random(seed);
 
 int exec_cmdlines(char **commands)
 {
@@ -37,16 +38,60 @@ int exec_cmdlines(char **commands)
 	return 0;
 }
 
+unsigned long calc_chksum(char *mem, unsigned long size)
+{
+	unsigned long sum = 0;
+	unsigned long *p = (unsigned long *)mem;
+
+	while ((size -= 4) > 0)
+		sum += *p++;
+	return sum;
+}
+
+int memtest_chksum(char *start, unsigned long size)
+{
+	unsigned long *p = (unsigned long *)start;
+	unsigned long sum = 0, rand = 0;
+	int i = 0;
+
+	for (i = 1; i < size/4; i++) {
+		rand = get_random(i);
+
+		*p++ = rand;
+		sum += rand;
+	}
+	if (sum != calc_chksum(start, size))
+		return 1;
+
+	return 0;
+}
+
 int ks8695_memtest(void)
 {
 	struct sysinfo info;
+	char *mem;
+	unsigned long msize;
 
+	/* capacity check */
 	sysinfo(&info);
-	if (info.totalram < MALLOC_TEST) {
+	if (info.totalram < TEST_MEMSIZE) {
 		netlog(NL_SDRAM_ERROR);
 		return 1;
 	}
-	netlog(NL_DEFAULT);
+
+	/* memory test */
+	msize = (info.freeram/4) * 3;
+	mem = (char *)malloc(msize);
+	if (!mem) {
+		netlog(NL_SDRAM_ERROR);
+		return 2;
+	}
+
+	bzero(mem, msize);
+	if (memtest_chksum(mem, msize) != 0) {
+		netlog(NL_SDRAM_ERROR);
+		return 3;
+	}
 
 	return 0;
 }
@@ -73,7 +118,7 @@ int ks8695_mtdtest(void)
 	}
 
 	fclose(fp);
-	if (mtdsize <= 0xf00000) {
+	if (mtdsize <= (TEST_MTDSIZE/4) * 3) {
 		netlog(NL_PARTITION_DOWN);
 		return 2;
 	}
@@ -106,6 +151,8 @@ int ks8695_nettest(void)
 
 int ks8695_modtest(void)
 {
+
+	/* rtc test */
 	char *cmdline[] = {
 		"echo 200904101654305 > /dev/sinfor/rtc",
 		""
@@ -183,7 +230,7 @@ static struct plantest_operations ptos[] = {
 struct plantest_operations *init_pto(void)
 {
 	int i;
-	char *ids = CURRENT_PTO;
+	char *ids = TEST_PTO;
 	struct plantest_operations *pto = NULL;
 
 	for (i = 0; i < sizeof(ptos)/sizeof(ptos[0]); i++)

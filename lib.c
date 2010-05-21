@@ -1,5 +1,17 @@
+/* lib.c
+ */
+
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
+
+unsigned long get_random(int seed)
+{
+	srandom(seed * time(NULL));
+	return random();
+}
+
 
 char *substr(char *str, char *sub, int i, int l)
 {

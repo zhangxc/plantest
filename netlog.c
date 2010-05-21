@@ -128,7 +128,7 @@ int netlog(int errcode)
 	// error code
 	bzero(&msg, sizeof(struct netlog_struct));
 	msg.errcode = errcode;
-	strncpy(msg.product, CURRENT_PTO, strlen(CURRENT_PTO));
+	strncpy(msg.product, TEST_PTO, strlen(TEST_PTO));
 
 	sprintf(buffer, "%04d%02d%02d%02d%02d%02d%1d",
 		tm_rtc.tm_year+1900, tm_rtc.tm_mon+1, tm_rtc.tm_mday+1,
@@ -194,6 +194,9 @@ int init_netlog()
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[4],
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[5],
 		'\0');
+
+	/* Set the RTC clock */
+	// not implemented yet
 
 	PDEBUG("%s: local IP addr %s, MAC addr %s\n", 
 	       TEST_NETDEV, v->inaddr, v->hwaddr);
