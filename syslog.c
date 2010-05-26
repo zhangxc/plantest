@@ -5,56 +5,53 @@
  * @ D.Wick 2009.7
  */
 
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
 
 /* syslog
  * 
  * This is syslog(), we want it to work.
  * 
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-//#define syslog(fmt, args ...) do_syslog(fmt, ##args)
-
-int syslog(char *msg)
+int syslog(char *fmt, ...)
 {
-	char *p = msg;
+	char *p = fmt;
 	char *mp;
 	int current_log_level = p[1] - '0';
-	int size = strlen(msg) - 3 + 8;
+	int size = 0;
+	FILE *fout;
+	va_list args;
+
+	va_start(args, fmt);
+
+	switch(current_log_level){
+	case 0 ... 2:
+		p += 3;
+		size = strlen(fmt) - 3;
+		fout = stderr;
+		break;
+	case 3:
+		p += 3;
+		size = strlen(fmt) - 3;
+		fout = stdout;
+		break;
+	default:
+		size = strlen(fmt);
+		fout = stdout;
+		break;
+	}
 
 	mp = (char *)malloc(size);
 	if (!mp) {
 		fprintf(stderr, "[FATAL] %s: malloc error!\n", __FUNCTION__);
 		return 1;
 	}
+
 	bzero(mp, size);
-
-	switch(current_log_level){
-	case 0:
-		p += 3;
-		strncpy(mp, "[EMERG] ", 8);
-		break;
-	case 1:
-		p += 3;
-		strncpy(mp, "[FATAL] ", 8);
-		break;
-	case 2:
-		p += 3;
-		strncpy(mp, "[ERROR] ", 8);
-		break;
-	case 3:
-		p += 3;
-		strncpy(mp, "[INFO ] ", 8);
-		break;
-	default:
-		break;
-	}
-
-	strncat(mp, p, strlen(msg));
-	fprintf(stderr, "%s", mp);
+	strncat(mp, p, size);
+	vfprintf(fout, mp,  args);
 	free(mp);
 
 	return 0;

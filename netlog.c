@@ -26,12 +26,12 @@ char clientid[20];
 char serverid[] = SERVER_ID;
 int  serverport = SERVER_PORT;
 
-static int confd; // Hold the socket to plantest server
+int confd; // Hold the socket to plantest server
 static struct sockaddr_in consa;
 
 extern struct vars * const v;
 
-extern char *substr(char *str, char *sub, int i, int l);
+extern int syslog(char *, ...);
 
 static int get_systime(struct tm *tm)
 {
@@ -71,7 +71,7 @@ static int send_netlog(struct netlog_struct *log)
 }
 
 
-int netlog(int errcode) 
+int netlog(int errcode, int type) 
 {
 	struct netlog_struct msg;
 //	FILE *fp;
@@ -153,8 +153,14 @@ int netlog(int errcode)
 	return 0;
 }
 
+int report_netlog(void)
+{
+	netlog_tick();
 
-int init_netlog() 
+	return 0;
+}
+
+int init_netlog(void) 
 {
 	struct ifreq ifreq;
 	int ret = 0;

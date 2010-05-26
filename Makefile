@@ -5,20 +5,21 @@
 DEBUG  = y
 #CC	= /usr/local/bin/arm-linux-gcc
 CC	= gcc
-CFLAGS  += -Wall -Wstrict-prototypes 
 
 ifeq ($(DEBUG),y)
-	CFLAGS += -O -g -DPT_DEBUG
+	CFLAGS += -O -g -DPT_DEBUG -Wall -Wstrict-prototypes 
 else
 	CFLAGS += -O2 -s
 endif
 
 
-all: plantest
+all: plantest server
 
 PHONY: clean
 
-plantest: plantest.o pto.o syslog.o netlog.o lib.o
+plantest: plantest.o pto.o syslog.o netlog.o netcmd.o lib.o
+
+server: server.o
 
 clean: 
-	rm -f plantest *.o *~
+	rm -f plantest server *.o *~

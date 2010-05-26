@@ -9,9 +9,16 @@
 #define TEST_MEMSIZE 1024*1024*32
 #define TEST_MTDSIZE 1024*1024*16
 #define TEST_NETDEV "eth0"
+#define TICK_TIMEOUT 2
+
+#define MTD_MNT_POINT "/"
+#define MTD_TEST_FILE "mtdtest_9m"
 
 #define RTC_DEV_FILE "/dev/rtc"
 #define RTC_LENGTH 16
 
+#define DMESG_FILE "/var/log/dmesg" /* absolete */
+#define IMAGE_KERNEL "zImage-16sf"
+#define IMAGE_DISK  "cramfs-16sf.img"
 
 #endif//__CONFIG_H__

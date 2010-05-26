@@ -8,9 +8,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+
+#include "pto.h"
+#include "syslog.h"
 #include "plantest.h"
 
-int errcode;
+
+extern struct plantest_operations *init_pto(void);
+extern int init_netlog(void);
+extern void exit_netlog(void);
+extern int report_netlog(void);
+extern int check_netcmd(void);
+extern int syslog(char *msg, ...);
+
 struct vars variables = {};
 struct vars * const v = &variables;
 struct tseq_struct tseq[] = {
@@ -21,15 +31,14 @@ struct tseq_struct tseq[] = {
 	{5, 0, "Stress test                         "},
 	{0, 0, NULL},
 };
+struct plantest_operations *pto = NULL;
 
 void cleanup(void);
 void do_tick(void);
 
-
 int main(int argc, char **argv)
 {
-	struct plantest_operations *pto = NULL;
-	int ret = 0;
+	int result = 0;
 
 	// initialization
 	if (init_netlog()) {
@@ -50,27 +59,27 @@ int main(int argc, char **argv)
 	do_test:
 		switch(tseq[v->i_tst].pattern) {
 		case 1:
-			pto->memtest();
+			result = pto->memtest();
 			break;
 		case 2:
-//			pto->mtdtest();
-			syslog(SYS_INFO "2\n");
+			result = pto->mtdtest();
 			break;
 		case 3:
-//			pto->nettest();
-			syslog(SYS_INFO "3\n");
+			result = pto->nettest();
 			break;
 		case 4:
-//			pto->modtest();
-			syslog(SYS_INFO "4\n");
+			result = pto->modtest();
 			break;
 		case 5:
-//			pto->strtest();
-			syslog(SYS_INFO "5\n");
+			result = pto->strtest();
 			break;
 		default:
-			syslog(SYS_INFO "0\n");
 			break;
+		}
+
+		if (result) {
+			tseq[v->i_tst].errors++;
+			v->ecounts++;
 		}
 
 		v->i_tst ++;
@@ -84,20 +93,26 @@ int main(int argc, char **argv)
 	}
 
 	cleanup();
-	return ret;
+	return result;
 }
 
 void do_tick()
 {
-	sleep(1);
 	// send a packet to report the status
+	report_netlog();
+
 	// check the socket to see if comes the commands from the server
+	check_netcmd();
 }
 
 
 void cleanup()
 {
 	// sockets cleanup
-	// warning with alarm
 	exit_netlog();
+
+	// warning with alarm
+	if (v->ecounts)
+		(void)system("echo 1 > /dev/alarm");
+			
 }

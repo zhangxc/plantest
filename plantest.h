@@ -3,10 +3,8 @@
 #ifndef __PLANTEST_H__
 #define __PLANTEST_H__
 
-#include "pto.h"
-#include "syslog.h"
+#include <time.h>
 #include "config.h"
-
 
 #undef PDEBUG
 #ifdef PT_DEBUG
@@ -27,23 +25,16 @@ struct vars {
 	int i_tst; // current running test
 	int i_pto;
 	int pass;
+	int ecounts;
 
 	char inaddr[16];     /* IP  address */
 	char hwaddr[18];     /* Mac address */
 };
 
-// pto.c
-extern struct plantest_operations *init_pto(void);
-
-// syslog.c
-extern int syslog(char *msg);
-
-// netlog.c
-extern int netlog(int msgno);
-extern int init_netlog(void);
-extern void exit_netlog(void);
-
-// lib.c
-extern char *substr(char *, char *, int, int);
+/* lib.c */
+extern unsigned long get_random(int seed);
+extern char *substr(char *str, char *sub, int i, int l);
+extern void str2tm(char rtc[16], struct tm *tm);
+extern int validate_time(struct tm tm);
 
 #endif // __PLANTEST_H__

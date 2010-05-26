@@ -14,7 +14,10 @@ struct plantest_operations {
 	int (*nettest)(void);		/* network test */
 	int (*modtest)(void);		/* module test */
 	int (*strtest)(void);		/* stress test */
+	int (*dmgchck)(void);		/* dmesg check */
 	void (*update)(void);		/* final updates */
+
+	int (*set_rtc)(char[16]);
 };
 
 #endif//__PTO_H__

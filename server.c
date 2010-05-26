@@ -23,7 +23,7 @@ int main(void)
 	struct sockaddr_in servaddr, cliaddr;
 	struct netlog_struct nlog;
 	int sockfd;
-	int len;
+	socklen_t len;
 	int n;
 
 	/* create a UDP socket */

@@ -8,6 +8,7 @@
 
 
 struct netlog_struct {
+	int  type;		/* log type */
 	char product[16];
 	char hwaddr[18];
 	char inaddr[16];
@@ -17,54 +18,57 @@ struct netlog_struct {
 	uint32 errcode;
 };
 
-/* errcode, 32 bits
- *  0- 3  Memory test
- *  4- 7  Flash test
- *  8-11  Clock test
- * 12-15  dmesg check
- * 16-31  reserved
+/* log type, int
  */
-#define NL_DEFAULT		0xffffffff
-#define NL_MEMORY		0x00000001
-#define NL_MEM_ALLOC		0x00000002
-#define NL_MEM_CHECK		0x00000004
-#define NL_MEM_FAULT		0x00000008
+#define LOGTYPE_VRY		0x565259
+#define LOGTYPE_INIT		1
+#define LOGTYPE_TICK		2
+#define LOGTYPE_ERROR		3
 
-#define NL_MTD			0x00000010
-#define NL_MTD_UNAVAIL		0x00000020
-#define NL_MTD_PART_SIZE	0x00000040
-#define NL_MTD_FAULT		0x00000080
 
-#define NL_TIME			0x00000100
-#define NL_RTC_FETCH		0x00000200
-#define NL_RTC_FORMAT		0x00000400
-#define NL_RTC_SET		0x00000800
+#define netlog_err(errcode)  netlog(errcode, LOGTYPE_ERROR)
+#define netlog_vry()   netlog(0, LOGTYPE_VRY)
+#define netlog_init()  netlog(0, LOGTYPE_INIT)
+#define netlog_tick()  netlog(0, LOGTYPE_TICK)
 
-#define NL_DMESG		0x00001000
-#define NL_DMESG_SEGFAUTL	0x00002000
-#define NL_DMESG_ERROR		0x00004000
-#define NL_DMESG_FAULT		0x00008000
+/* errcode, 32 bits 
+ * bit 0- 7, driver errors, max 255
+ */
+#define NL_DEFAULT		0
 
-#define NL_RESERVED		0x11110000
+#define NL_MEM_SIZE		1	// 内存大小错误
+#define NL_MEM_MALLOC		2	// 内存分配失败
+#define NL_MEM_CHECKSUM		3	// 内存检测失败
 
-/* message number */
-#define NL_ALL_OK		0
-#define NL_MALLOC_ERROR		1
-#define NL_SDRAM_ERROR		2
-#define NL_PARTITION_DOWN	3
-#define NL_MTD_DIFF_ERROR	4
-#define NL_UPTIME_ERROR		5
-#define NL_SYSTEM_ERROR		6
-#define NL_CMDLINE_ERROR	7
-#define NL_SHELL_ERROR		8
-#define NL_SOCKET_ERROR		9
-#define NL_INIT_SYS_LOG		10
-#define NL_GET_TIME_ERROR	11
-#define NL_RTC_ERROR		12
-#define NL_NO_MTD_IN_PROCFS	13
-#define NL_UNKNOWN_ERROR	14
-#define NL_HERE_WE_GO		15
-#define NL_INVALID_PTO_ID	16
+#define NL_MTD_NO_PROCFS	16	// /proc/mtd 读取失败
+#define NL_MTD_SIZE		17	// Flash 大小错误
+#define NL_MTD_RWCHECK		18	// MTD 读写检测失败
 
+#define NL_RTC_NO_DEV_FILE	32	// RTC 设备文件读取失败
+#define NL_RTC_BAD_FORMAT	33	// RTC 输出格式错误
+#define NL_RTC_INACCURACY	34	// RTC 漂移过量
+
+/* bit 8-15, kernel faults, max 255 */
+#define NL_DMG_NO_DMG_FILE	1 << 8	// DMESG 文件读取失败
+#define NL_DMG_FAULT		2 << 8	// 捕捉到致命错误
+#define NL_DMG_ERROR		3 << 8	// 捕捉到普通错误
+#define NL_DMG_SEGFAULT		4 << 8	// 捕捉到段错误
+
+/* bit 16-23, user space errors, max 255 */
+#define NL_PTO_ID_INAVAIL	1 << 16
+#define NL_SHELL_ERROR		2 << 16
+
+#define NL_LIBC_SYSTEM		16 << 16
+#define NL_LIBC_TIME		17 << 16
+#define NL_LIBC_MKTIME		18 << 16
+#define NL_LIBC_STATFS		19 << 16
+#define NL_LIBC_KLOGCTL		20 << 16
+
+#define NL_NETCMD_BAD_FORMAT	32 << 16	// 服务器的格式命令错误
+#define NL_NETCMD_BAD_RTC       33 << 16
+#define NL_NETCMD_SET_RTC	34 << 16
+
+
+/* bit 24-31, reserved */
 
 #endif //__LOG_H__
