@@ -3,18 +3,9 @@
 #include <strings.h>
 #include <stdio.h>
 
-typedef struct sockaddr SA;
-typedef unsigned int uint32;
+#include "netlog.h"
+#include "types.h"
 
-struct netlog_struct {
-	char product[16];
-	char hwaddr[18];
-	char inaddr[16];
-	char rtc_time[16];
-	char sys_time[16];
-	char up_time[8];
-	uint32 errcode;
-};
 
 int serverport = 8000;
 
