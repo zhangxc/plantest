@@ -21,6 +21,7 @@
 #include "plantest.h"
 #include "netlog.h"
 #include "syslog.h"
+#include "netcmd.h"
 
 char clientid[20];
 char serverid[] = SERVER_ID;
@@ -32,6 +33,7 @@ static struct sockaddr_in consa;
 extern struct vars * const v;
 
 extern int syslog(char *, ...);
+extern int wait_for_netcmd(void);
 
 static int get_systime(struct tm *tm)
 {
@@ -46,27 +48,34 @@ static int get_systime(struct tm *tm)
 }
 
 
-static int validate_reply(char *r)
+static int validate_reply(struct netcmd_struct r)
 {
-	/* not implemented yet */
-	return 0;
+	PDEBUG("%s: cmd %8x\n", __FUNCTION__, r.cmd);
+	if (r.cmd == NC_VERIFY)
+		return 0;
+	else
+		return 1;
 }
 
 static int send_netlog(struct netlog_struct *log)
 {
 	int retry = 3;
-	char reply[64];
+	struct netcmd_struct reply;
 
+	PDEBUG("%s: type %8x, err %8lx\n", __FUNCTION__, log->type, log->errcode);
 	while (retry-- > 0) {
 		sendto(confd, (void *)log, sizeof(struct netlog_struct), 0, 
 		       (struct sockaddr *)&consa, sizeof(struct sockaddr));
 		// delay
-		recvfrom(confd, reply, 64, 0, NULL, NULL);
+		if (log->type == LOGTYPE_VRY) 
+			return 0;
+		recvfrom(confd, (void*) &reply, sizeof(struct netcmd_struct), 
+			 0, NULL, NULL);
 		if (validate_reply(reply) == 0)
 			return 0;
 	}
 
-	syslog(SYS_ERROR "Error sending log to "SERVER_ID);
+	syslog(SYS_ERROR "Error sending log to %s\n", SERVER_ID);
 	return 1;
 }
 
@@ -74,9 +83,8 @@ static int send_netlog(struct netlog_struct *log)
 int netlog(int errcode, int type) 
 {
 	struct netlog_struct msg;
-//	FILE *fp;
+	FILE *fp;
 	char buffer[16]; // must fit netlog_struct definition
-	char f[4];
 	struct tm tm_sys, tm_rtc;
 	struct sysinfo info;
 	int updays, uphours, upmins;
@@ -99,47 +107,31 @@ int netlog(int errcode, int type)
 	sysinfo(&info);
 
 	// encapsulation
-	substr(buffer, f, 0, 4);
-	tm_rtc.tm_year = atoi(f) - 1900;
-
-	substr(buffer, f, 4, 2);
-	tm_rtc.tm_mon = atoi(f) - 1;
-
-	substr(buffer, f, 6, 2);
-	tm_rtc.tm_mday = atoi(f) - 1;
-
-	substr(buffer, f, 8, 2);
-	tm_rtc.tm_hour = atoi(f);
-
-	substr(buffer, f, 10, 2);
-	tm_rtc.tm_min = atoi(f);
-
-	substr(buffer, f, 12, 2);
-	tm_rtc.tm_sec = atoi(f);
-
-	substr(buffer, f, 14, 2);
-	tm_rtc.tm_wday = atoi(f) - 1;
+	str2tm(buffer, &tm_rtc);
 
 	updays = (int) info.uptime / (60*60*24);
 	upmins = (int) info.uptime / 60;
 	uphours = (upmins / 60) % 24;
 	upmins %= 60;
 
-	// error code
 	bzero(&msg, sizeof(struct netlog_struct));
+	/* log type */
+	msg.type = type;
+
+	// error code
 	msg.errcode = errcode;
 	strncpy(msg.product, TEST_PTO, strlen(TEST_PTO));
 
 	sprintf(buffer, "%04d%02d%02d%02d%02d%02d%1d",
-		tm_rtc.tm_year+1900, tm_rtc.tm_mon+1, tm_rtc.tm_mday+1,
+		tm_rtc.tm_year + 1900, tm_rtc.tm_mon + 1, tm_rtc.tm_mday,
 		tm_rtc.tm_hour, tm_rtc.tm_min, tm_rtc.tm_sec,
-		tm_rtc.tm_wday+1);
+		tm_rtc.tm_wday);
 	strncpy(msg.rtc_time, buffer, 16);
 
 	sprintf(buffer, "%04d%02d%02d%02d%02d%02d%1d",
-		tm_sys.tm_year + 1900, tm_sys.tm_mon + 1, tm_sys.tm_mday + 1,
+		tm_sys.tm_year + 1900, tm_sys.tm_mon + 1, tm_sys.tm_mday,
 		tm_sys.tm_hour, tm_sys.tm_min, tm_sys.tm_sec,
-		tm_sys.tm_wday + 1);
+		tm_sys.tm_wday);
 	strncpy(msg.sys_time, buffer, 16);
 
 	sprintf(buffer, "%02d%02d%02d", 
@@ -150,6 +142,8 @@ int netlog(int errcode, int type)
 	strncpy(msg.hwaddr, v->hwaddr, 18);
 
 	send_netlog(&msg);
+
+//	fclose(fp);
 	return 0;
 }
 
@@ -201,8 +195,17 @@ int init_netlog(void)
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[5],
 		'\0');
 
-	/* Set the RTC clock */
-	// not implemented yet
+	/* the initiazation netlog (plantest protocol):
+	 *   netlog_init to be the first datagram sent to server, some jobs to 
+	 *   be finished: 
+	 *
+	 *     - set the rtc time
+	 *     - ...
+	 */
+	PDEBUG("plantest protocol: set rtc time during initialization\n");
+	netlog_init();
+	if (wait_for_netcmd() != NC_SET_RTC)
+		return 4;
 
 	PDEBUG("%s: local IP addr %s, MAC addr %s\n", 
 	       TEST_NETDEV, v->inaddr, v->hwaddr);

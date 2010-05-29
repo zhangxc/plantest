@@ -18,7 +18,7 @@
 #include "pto.h"
 
 extern char clientid[];
-extern char *serverid;
+extern char serverid[];
 extern struct vars * const v;
 extern unsigned long get_random(int seed);
 extern char *substr(char *str, char *sub, int i, int l);
@@ -86,10 +86,10 @@ int exec_cmdlines(char **commands)
 	do {
 		result = system(*cmds);
 		if (result == -1) {
-			result = 1;netlog_err(NL_LIBC_SYSTEM);
+			netlog_err(NL_LIBC_SYSTEM);
 			break;
 		} else if (result) {
-			result = 2;netlog_err(NL_SHELL_ERROR);
+			netlog_err(NL_SHELL_ERROR);
 			break;
 		}
 	} while (strcmp(*cmds++, ""));
@@ -122,8 +122,9 @@ int ks8695_memtest(void)
 		return ret;
 	}
 
-	bzero(mem, msize);
+	msize = 4*1024*1024;
 	if (memtest_chksum(mem, msize) != 0) {
+		PDEBUG("can you see me");
 		netlog_err(NL_MEM_CHECKSUM);
 		ret = 3;
 		goto DONE;
@@ -160,14 +161,15 @@ int ks8695_mtdtest(void)
 		"cp /tmp/"MTD_TEST_FILE" /",
 	};
 
-	sprintf(st1, "cd /tmp && wget http://%s/%s/"MTD_TEST_FILE,
-		serverid, TEST_PTO);
-	cmd1[1] = st1;
-
 	char *cmd0[] = {
 		"rm -f /"MTD_TEST_FILE,
 		"umount /tmp",
 	};
+
+	bzero(st1, 256);
+	sprintf(st1, "cd /tmp && wget http://%s/%s/%s",
+		HTTP_SERVER, TEST_PTO, MTD_TEST_FILE);
+	cmd1[1] = st1;
 
 	if (exec_cmdlines(cmd1)) {
 		syslog("%s: shell excution with errors\n", __FUNCTION__);
@@ -296,9 +298,9 @@ void ks8695_sysupdate(void)
 
 	sprintf(st1, "ifconfig eth0 %s up", clientid);
 	sprintf(st2, "cd /tmp && wget http://%s/%s/%s", 
-		serverid, TEST_PTO, IMAGE_KERNEL);
+		HTTP_SERVER, TEST_PTO, IMAGE_KERNEL);
 	sprintf(st5, "cd /tmp && wget http://%s/%s/%s", 
-		serverid, TEST_PTO, IMAGE_DISK);
+		HTTP_SERVER, TEST_PTO, IMAGE_DISK);
 	cmdline[1] = st1;
 	cmdline[2] = st2;
 	cmdline[5] = st5;
@@ -320,7 +322,7 @@ int ks8695_set_rtctime(char rtc[16])
 		return 1;
 	}
 
-	sprintf(cmd, "echo %s > "RTC_DEV_FILE, rtc);
+	sprintf(cmd, "echo %s > %s", rtc, RTC_DEV_FILE);
 	result = system(cmd);
 	if (result != 0) {
 		netlog_err(NL_NETCMD_SET_RTC);
@@ -352,10 +354,6 @@ struct plantest_operations *init_pto(void)
 			pto = &ptos[i];
 			break;
 		}
-
-
-	if (!pto)
-		netlog_err(NL_PTO_ID_INAVAIL);
 
 	return pto;
 }

@@ -1,0 +1,239 @@
+		老化房软件设计方案 -- 客户端 Plantest
+
+
+老化房系统功能
+
+  1. 对正在老化的设备进行全方位检测；
+  2. 将检测结果通过UDP方式向服务器发送；
+  3. 通过检测发现故障设备和不稳定的设备；
+  4. 将特定设备的软件升级为指定的软件；
+
+
+Plantest 软件功能
+
+  1. 检测内存
+  2. 检测Flash
+  3. 检测实时时钟 RTC
+  4. 检测设备上电输出信息
+  5. 定期发送uptime报文
+  6. 允许接收服务器命令，如系统升级命令
+
+
+Plantest 实现方案
+
+  1. 检测内存 memtest
+
+     内存检测项目包括
+
+     - 内存大小的检查
+       检查系统的 sysinfo 结构，查看 totalram 成员大于 4/5 的SDRAM 容量
+
+     - 内存测试
+       算法说明：申请一块内存，内存大小为 4/5 的空闲内存，然后用随机数填充这块内
+       存，算得随机数的checksum值大小。在按4字节读取此片区内存，算出checksum值，
+       两者相互比较，如果一样则证明读写正确，内存测试完成。否则报错。
+
+  2. 检测Flash mtdtest
+
+     Flash 检测项目包括
+
+     - 检测MTD分区大小，读取 /proc/mtd 的分区信息，求的MTD分区总容量进行比较
+
+     - MTD读写测试，下载服务器上的文件写入到 MTD 分区中，比较原文件和 Flash 文件
+
+  3. 检测实时时钟时间 modtest
+
+     modtest 包含了各个模块的检测，但目前仅包含rtc实时时钟测试。
+
+     RTC检测，简单将取出 RTC_DEV_FILE (多半为 /dev/rtc)的输出，然后查看输出格式
+     是否正确即可。关于时间漂移检测交由服务器处理。
+
+  4. 检测设备上电输出信息 dmgchck
+
+     检测上电信息输出，是为了捕捉系统启动中包含的错误信息。他一般包括
+
+      - fault 严重错误
+      - error 错误
+      - segmentation fault，段错误，实体错误举例
+
+     检测算法很简洁，使用 klogctl() 读出 kernel ring buffer，查看是否包含目标模
+     式字符串，查找到后报错。
+
+  5. plantest中的定期处理 do_tick
+     在任何测试的间歇，plantest 都插入了过渡期处理 do_tick，这个时候做的事情一般
+     有：
+
+      - 发送uptime报告表明机器正在运行，服务器才可能检测 RTC 漂移
+      - 接收服务器指令报文，目前有 update指令，realtime 指令
+
+
+服务器和客户端的通讯协议说明
+
+  初始化阶段
+
+    客户端发送初始化报文，这在程序生命期内只发送一次。
+
+    服务器回应确认；然后发送网络命令，设置客户端主板的 RTC 时钟。
+
+    客户端回应确认；然后执行设置。
+
+  测试阶段
+
+    客户端检测出错误之后，发送错误报告，报告将指明错误代码
+
+    服务器端回应确认。
+
+  测试过渡阶段，每单项测试的间隔期
+
+    客户端发送正常通信报文，表明未掉线。
+
+    服务器端回应确认。
+
+    客户端等待服务器端命令，等待时间为 2 秒。
+
+    服务器发送命令。
+
+    客户端回应确认；然后执行命令。
+
+
+
+附录1 主流程设计
+
+  简短的主流程设计如下:
+
+  ----
+		v->i_tst = 0;
+	do_test:
+		switch(tseq[v->i_tst].pattern) {
+		case 1:
+			/* plantest operations: memory test */
+			pto->memtest();
+			break;
+		case 2:
+			pto->mtdtest();
+			break;
+		case 3:
+			pto->modtest();
+			break;
+		case 4:
+			pto->dmgchck();
+			break;
+		case 5:
+			/* stressing test ... not implemented yet */
+			pto->strtest(); 
+			break;
+		default:
+			break;
+		}
+
+		v->i_tst++;
+		if (v->i_tst > NB_OF(tseq - 2) {
+		   	v->pass++;
+			v->i_tst = 0;
+		}
+
+		do_tick();
+
+		goto do_test;
+  ----
+
+
+附录2. 客户端发包格式 To server
+
+  客户端之间基本的发包格式为 struct netlog_struct。
+
+  struct netlog_struct {
+  	int type;		/* log type */
+	char product[16];	/* Product description */
+	char hwaddr[18];	/* Mac address */
+	char inaddr[16];	/* IP  address */
+	char rtc_time[16];	/* RTC output time, YYYYMMDDHHMMSSw */
+	char sys_time[16];	/* Linux sys  time, YYYYMMDDHHMMSSw */
+	char  up_time[8];	/* Uptime, DDMMSS */
+	uint32 errcode;		/* Error code, betrayed below */
+  };
+
+  type 字段定义
+
+    LOGTYPE_VRY			/* 服务器命令确认 */
+    LOGTYPE_INIT		/* 初始阶段报文 */
+    LOGTYPE_TICK		/* 测试间歇期报文 */
+    LOGTYPE_ERROR		/* 测试器出错报告 */
+
+附录3. 客户端错误信息代码
+
+  netlog_struct 中定义了 32位的错误代码 errcode，它使用了硬编码格式，将错误反映
+  在一个双字节上。errcode 取消单个比特位的错误定义，因为32位只能编码31个错误。错
+  误代码格式定义如下：
+
+  1. 驱动检测错误 bit 0-7, max 255
+
+    1.1 内存模块 1-15
+
+	NL_MEM_SIZE		// 内存大小错误
+	NL_MEM_MALLOC		// 内存分配失败
+	NL_MEM_CHECKSUM		// 内存检测失败
+
+    1.2 MTD模块 16-31
+
+	NL_MTD_NO_PROCFS	// /proc/mtd 读取失败
+	NL_MTD_SIZE		// Flash 大小错误
+	NL_MTD_RWCHECK		// MTD 读写检测失败
+
+    1.3 RTC模块 32-47
+
+	NL_RTC_NO_DEV_FILE	// RTC 设备文件读取失败
+	NL_RTC_BAD_FORMAT	// RTC 输出格式错误
+	NL_RTC_INACCURACY	// RTC 漂移过量
+
+  2. 内核内部错误 bit 8-15, max 255
+
+    2.1 dmesg 错误代码
+
+	NL_DMG_NO_DMG_FILE	// DMESG 文件读取失败
+	NL_DMG_FAULT		// 捕捉到致命错误
+	NL_DMG_ERROR		// 捕捉到普通错误
+	NL_DMG_SEGFAULT		// 捕捉到段错误
+
+  3. 用户空间错误 bit 16-23, max 255
+
+    3.1 泛型错误代码
+
+     	NL_PTO_ID_INAVAIL	// 错误的 PTO 设置
+	NL_SHELL_ERROR		// Shell 执行错误
+
+    3.2
+
+	NL_NETCMD_BAD_FORMAT	// 服务器命令格式错误
+	NL_NETCMD_BAD_RTC	// 服务器给定rtc时间格式错误
+	NL_NETCMD_SET_RTC	// 客户端设置rtc错误
+
+    3.3 GLIBC API 报错
+
+	NL_LIBC_SYSTEM
+	NL_LIBC_TIME
+	NL_LIBC_MKTIME
+	NL_LIBC_STATFS
+	NL_LIBC_KLOGCTL
+
+  4. 保留字段定义 bi5 24-31, max 255
+
+
+附录4. 服务器命令方式 From server
+
+  plantest要求可以接收服务器的命令，根据命令来之行相应操作，至今已知的操作有两种：
+
+    - NC_VERIFY，verify指令，回应确认
+    - NC_UPGRADE，upgrade指令，系统升级，要求指定升级的目标系统
+    - NC_GET_RTC，get_uptime指令，获取uptime时间，不需要附加数据
+    - NC_SET_RTC，realtime指令，设置rtc时间，要求给出服务器时间
+
+  网络服务器命令的数据结构为
+
+	struct netcmd_struct {
+		int cmd;
+		union {
+			char product[16]; /* NC_UPGRADE */
+			char rtctime[16]; /* NC_SET_RTC */
+		};
+	};

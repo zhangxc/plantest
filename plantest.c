@@ -18,8 +18,10 @@ extern struct plantest_operations *init_pto(void);
 extern int init_netlog(void);
 extern void exit_netlog(void);
 extern int report_netlog(void);
-extern int check_netcmd(void);
+extern int wait_for_netcmd(void);
 extern int syslog(char *msg, ...);
+
+char *plantest_version = "0.1 beta";
 
 struct vars variables = {};
 struct vars * const v = &variables;
@@ -28,11 +30,14 @@ struct tseq_struct tseq[] = {
 	{2, 0, "MTD device test                     "},
 	{3, 0, "Time check, such as rtc and uptime  "},
 	{4, 0, "Dmesg check like segfault           "},
-	{5, 0, "Stress test                         "},
+//	{5, 0, "Stress test                         "},
 	{0, 0, NULL},
 };
 struct plantest_operations *pto = NULL;
 
+void display_header(void);
+void display_ui(void);
+void clean_ui(void);
 void cleanup(void);
 void do_tick(void);
 
@@ -41,22 +46,25 @@ int main(int argc, char **argv)
 	int result = 0;
 
 	// initialization
+	if (!(pto = init_pto())) {
+		syslog(SYS_FATAL "pto initiazation error, check this out!\n");
+		exit(1);
+	}
+
 	if (init_netlog()) {
 		/* What am i supposed to do without a communication ? */
 		syslog(SYS_FATAL "socket init error. Exit!\n");
 		exit(1);
 	}
 
-	if (!(pto = init_pto())) {
-		syslog(SYS_FATAL "pto initiazation error, check this out!\n");
-		exit(1);
-	}
-
 	v->i_tst = 0;
+	display_header();
 
 	// processing the test
 	{
 	do_test:
+//		display_ui();
+
 		switch(tseq[v->i_tst].pattern) {
 		case 1:
 			result = pto->memtest();
@@ -65,10 +73,10 @@ int main(int argc, char **argv)
 			result = pto->mtdtest();
 			break;
 		case 3:
-			result = pto->nettest();
+			result = pto->modtest();
 			break;
 		case 4:
-			result = pto->modtest();
+			result = pto->dmgchck();
 			break;
 		case 5:
 			result = pto->strtest();
@@ -93,7 +101,29 @@ int main(int argc, char **argv)
 	}
 
 	cleanup();
+	clean_ui();
 	return result;
+}
+
+void display_header()
+{
+	printf("server - ip %s:%d\n", SERVER_ID, SERVER_PORT);
+	printf("client - ip %s:%d, hw %s, %s\n", 
+	       v->inaddr, SERVER_PORT, v->hwaddr, TEST_NETDEV);
+}
+
+void display_ui()
+{
+	printf("[%4d.%4d] %d/%d %s", 
+	       v->pass, v->ecounts, v->i_tst+1, 
+	       NB_OF(tseq) - 2, tseq[v->i_tst].info);
+	printf("\r");
+	fflush(stdout);
+}
+
+void clean_ui()
+{
+	printf("\n");
 }
 
 void do_tick()
@@ -102,7 +132,7 @@ void do_tick()
 	report_netlog();
 
 	// check the socket to see if comes the commands from the server
-	check_netcmd();
+	wait_for_netcmd();
 }
 
 

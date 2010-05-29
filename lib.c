@@ -38,7 +38,7 @@ void str2tm(char rtc[16], struct tm *tm)
 	tm->tm_mon = atoi(f) - 1;
 
 	substr(rtc, f, 6, 2);
-	tm->tm_mday = atoi(f) - 1;
+	tm->tm_mday = atoi(f);
 
 	substr(rtc, f, 8, 2);
 	tm->tm_hour = atoi(f);
@@ -50,7 +50,7 @@ void str2tm(char rtc[16], struct tm *tm)
 	tm->tm_sec = atoi(f);
 
 	substr(rtc, f, 14, 2);
-	tm->tm_wday = atoi(f) - 1;
+	tm->tm_wday = atoi(f);
 }
 
 

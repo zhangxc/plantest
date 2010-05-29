@@ -21,6 +21,6 @@ struct netcmd_struct {
 #define NC_EXIT		4
 
 #define NC_UPGRADE	16
-#define NC_GET_RTC
-#define NC_SET_RTC	17
+#define NC_GET_RTC	17
+#define NC_SET_RTC	18
 #endif//__NETCMD_H__
