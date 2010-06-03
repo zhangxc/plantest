@@ -1,6 +1,7 @@
 /* netcmd.c
  */
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -10,7 +11,6 @@
 #include "netlog.h"
 #include "netcmd.h"
 #include "pto.h"
-#include <stdio.h>
 
 extern int confd;
 extern struct sockaddr_in consa;
@@ -39,6 +39,7 @@ int wait_for_netcmd(void)
 	fd_set rset;
 	int maxfdpl;
 	struct timeval timeout = { TICK_TIMEOUT, 0 };
+	int ret = 0;
 
 	FD_ZERO(&rset);
 	FD_SET(confd, &rset);
@@ -65,20 +66,23 @@ int wait_for_netcmd(void)
 
 		switch(c.cmd) {
 		case NC_VERIFY:
-			return NC_VERIFY;
+			ret = NC_VERIFY;
 			break;
 		case NC_UPGRADE:
 			pto->update();
+			ret = NC_UPGRADE;
 			break;
 		case NC_SET_RTC:
 			pto->set_rtc(c.rtctime);
+			ret = NC_SET_RTC;
 			break;
 		default:
 			netlog_err(NL_NETCMD_BAD_FORMAT);
+			ret = -3;
 			break;
 		}
 	}
 
 NO_CMD_RECEIVED:
-	return 0;
+	return ret;
 }

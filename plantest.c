@@ -13,6 +13,7 @@
 #include "syslog.h"
 #include "plantest.h"
 
+extern int sysloged;
 
 extern struct plantest_operations *init_pto(void);
 extern int init_netlog(void);
@@ -63,8 +64,9 @@ int main(int argc, char **argv)
 	// processing the test
 	{
 	do_test:
-//		display_ui();
-
+#ifndef PT_DEBUG
+		display_ui();
+#endif
 		switch(tseq[v->i_tst].pattern) {
 		case 1:
 			result = pto->memtest();
@@ -88,6 +90,7 @@ int main(int argc, char **argv)
 		if (result) {
 			tseq[v->i_tst].errors++;
 			v->ecounts++;
+			result = 0;
 		}
 
 		v->i_tst ++;
@@ -114,11 +117,14 @@ void display_header()
 
 void display_ui()
 {
+	printf("\r");
 	printf("[%4d.%4d] %d/%d %s", 
 	       v->pass, v->ecounts, v->i_tst+1, 
-	       NB_OF(tseq) - 2, tseq[v->i_tst].info);
+	       NB_OF(tseq) - 1, tseq[v->i_tst].info);
 	printf("\r");
 	fflush(stdout);
+
+
 }
 
 void clean_ui()

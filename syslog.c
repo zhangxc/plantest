@@ -15,6 +15,8 @@
  * This is syslog(), we want it to work.
  * 
  */
+int sysloged = 0;
+
 int syslog(char *fmt, ...)
 {
 	char *p = fmt;
@@ -51,8 +53,10 @@ int syslog(char *fmt, ...)
 
 	bzero(mp, size);
 	strncat(mp, p, size);
+		printf("\n");
 	vfprintf(fout, mp,  args);
-	free(mp);
 
+	sysloged++;
+	free(mp);
 	return 0;
 }

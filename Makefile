@@ -2,7 +2,7 @@
 #
 #
 
-DEBUG  = y
+DEBUG  = 
 CC	= /usr/local/bin/arm-linux-gcc
 #CC	= gcc
 

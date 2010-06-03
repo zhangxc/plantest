@@ -107,13 +107,13 @@ int ks8695_memtest(void)
 
 	/* capacity check */
 	sysinfo(&info);
-	if (info.totalram < TEST_MEMSIZE) {
+	if (info.totalram < (TEST_MEMSIZE/10)*9) {
 		netlog_err(NL_MEM_SIZE);
 		return 1;
 	}
 
 	/* memory test */
-	msize = (info.freeram/4) * 3;
+	msize = (info.freeram/10) * 9;
 	mem = (char *)malloc(msize);
 	if (!mem) {
 		syslog(SYS_ERROR "malloc error");
@@ -149,7 +149,8 @@ int ks8695_mtdtest(void)
 	}
 
 	mtdsize = (stat.f_bsize / 1024) * stat.f_blocks;
-	if (mtdsize <= (TEST_MTDSIZE/4) * 3) {
+	if (mtdsize <= ((TEST_MTDSIZE/1024)/4) * 3) {
+		PDEBUG("mtdsize %08lx\n", mtdsize);
 		netlog_err(NL_MTD_SIZE);
 		return 2;
 	}
@@ -159,15 +160,17 @@ int ks8695_mtdtest(void)
 		"mount -t tmpfs none /tmp",
 		NULL,
 		"cp /tmp/"MTD_TEST_FILE" /",
+		"",
 	};
 
 	char *cmd0[] = {
 		"rm -f /"MTD_TEST_FILE,
 		"umount /tmp",
+		"",
 	};
 
 	bzero(st1, 256);
-	sprintf(st1, "cd /tmp && wget http://%s/%s/%s",
+	sprintf(st1, "cd /tmp && wget -q http://%s/%s/%s",
 		HTTP_SERVER, TEST_PTO, MTD_TEST_FILE);
 	cmd1[1] = st1;
 
@@ -222,9 +225,9 @@ int ks8695_strtest(void)
 
 int ks8695_dmgchck(void)
 {
-	int i, n = 0;
+	int i = 0, n = 0;
 	int sz;
-	int ret;
+	int ret = 0;
 	char *buf;
 	char *needle[] = {
 		"segmentation fault",	/* 0 */
@@ -258,12 +261,13 @@ int ks8695_dmgchck(void)
 
 	// check the dmesg buffer
 	for (i = 0; i < NB_OF(*needle); i++, *nd++) {
-		if (!strcasestr(buf, *nd))
+		if (!strstr(buf, *nd))
 			continue;
 
 		// capture the needle
 		switch (i) {
-		case 0 ... 1:
+		case 0:
+		case 1:
 			netlog_err(NL_DMG_SEGFAULT);
 			break;
 		case 2:
@@ -297,9 +301,9 @@ void ks8695_sysupdate(void)
 	};
 
 	sprintf(st1, "ifconfig eth0 %s up", clientid);
-	sprintf(st2, "cd /tmp && wget http://%s/%s/%s", 
+	sprintf(st2, "cd /tmp && wget -q http://%s/%s/%s", 
 		HTTP_SERVER, TEST_PTO, IMAGE_KERNEL);
-	sprintf(st5, "cd /tmp && wget http://%s/%s/%s", 
+	sprintf(st5, "cd /tmp && wget -q http://%s/%s/%s", 
 		HTTP_SERVER, TEST_PTO, IMAGE_DISK);
 	cmdline[1] = st1;
 	cmdline[2] = st2;
@@ -318,6 +322,7 @@ int ks8695_set_rtctime(char rtc[16])
 
 	str2tm(rtc, &tm);
 	if (validate_time(tm)) {
+		syslog(SYS_ERROR "invalid time %s\n", rtc);
 		netlog_err(NL_NETCMD_BAD_RTC);
 		return 1;
 	}
@@ -328,7 +333,6 @@ int ks8695_set_rtctime(char rtc[16])
 		netlog_err(NL_NETCMD_SET_RTC);
 		return 2;
 	}
-
 	return 0;
 }
 

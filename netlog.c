@@ -90,7 +90,7 @@ int netlog(int errcode, int type)
 	int updays, uphours, upmins;
 
 	// A. rtc time "YYYYMMDDHHMMSSw"
-/*	if (!(fp = fopen(RTC_DEV_FILE, "r"))) {
+	if (!(fp = fopen(RTC_DEV_FILE, "r"))) {
 		syslog(SYS_ERROR "Cannot open "RTC_DEV_FILE"\n");
 		return 1;
 	}
@@ -98,9 +98,7 @@ int netlog(int errcode, int type)
 		syslog(SYS_ERROR "Wrong RTC format\n");
 		return 2;
 	}
-*/
-	// test
-	strncpy(buffer, "201005181510303\0", RTC_LENGTH);
+
 	// B. sys time "YYYYMMDDHHMMSSw"
 	get_systime(&tm_sys);
 	// C. up  time "DDHHMM"

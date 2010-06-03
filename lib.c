@@ -5,6 +5,8 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <stdio.h>
+#include "plantest.h"
 
 unsigned long get_random(int seed)
 {
@@ -29,7 +31,7 @@ char *substr(char *str, char *sub, int i, int l)
 /* convert the char[16] to tm structure */
 void str2tm(char rtc[16], struct tm *tm) 
 {
-	char f[4];
+	char f[5];
 
 	substr(rtc, f, 0, 4);
 	tm->tm_year = atoi(f) - 1900;
@@ -49,7 +51,7 @@ void str2tm(char rtc[16], struct tm *tm)
 	substr(rtc, f, 12, 2);
 	tm->tm_sec = atoi(f);
 
-	substr(rtc, f, 14, 2);
+	substr(rtc, f, 14, 1);
 	tm->tm_wday = atoi(f);
 }
 

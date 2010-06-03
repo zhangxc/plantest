@@ -8,13 +8,14 @@
 #include <time.h>
 #include <linux/rtc.h>
 #include <sys/ioctl.h>
+#include <string.h>
 
 #include "netlog.h"
 #include "types.h"
 #include "netcmd.h"
 #include "config.h"
 
-int get_rtctime(struct tm *tm);
+static int get_systime(struct tm *);
 
 int main(void)
 {
@@ -40,7 +41,7 @@ int main(void)
 		n = recvfrom(sockfd, &nlog, 
 			     sizeof(struct netlog_struct), 0, (SA *)&cliaddr, &len);
 
-		printf("type: %8x\terrcode: %8lx\n", nlog.type, nlog.errcode);
+		printf("<- type: %8x\terrcode: %8lx\n", nlog.type, nlog.errcode);
 
 		if (nlog.type == LOGTYPE_VRY)
 			continue;
@@ -52,9 +53,12 @@ int main(void)
 
 		switch(nlog.type) {
 		case LOGTYPE_INIT:
-			get_rtctime(&tm);
+			get_systime(&tm);
 			ncmd.cmd = NC_SET_RTC;
-			sprintf(ncmd.rtctime, "201005291442306");
+			sprintf(ncmd.rtctime, "%04d%02d%02d%02d%02d%02d%1d",
+				tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+				tm.tm_hour, tm.tm_min, tm.tm_sec,
+				tm.tm_wday);
 			sendto(sockfd, (void *)&ncmd, sizeof(struct netcmd_struct), 0, 
 			       (struct sockaddr *)&cliaddr, sizeof(struct sockaddr));
 			break;
@@ -74,12 +78,14 @@ int main(void)
 	return 0;
 }
 
-int get_rtctime(struct tm *tm) 
+static int get_systime(struct tm *tm)
 {
-	int rtcfd;
+	time_t tt;
+	struct tm *tp;
 
-	rtcfd = open("/dev/rtc", O_RDONLY);
-	ioctl(rtcfd, RTC_RD_TIME, (struct rtc_time *)&tm);
+	time(&tt);
+	tp = localtime(&tt);
+	memcpy(tm, tp, sizeof(struct tm));
 
 	return 0;
 }

@@ -2,7 +2,8 @@
 #define __CONFIG_H__
 
 
-#define SERVER_ID  "192.168.16.1"
+//#define SERVER_ID  "127.0.0.1"
+#define SERVER_ID "192.168.16.91"
 #define SERVER_PORT 27015
 
 #define TEST_PTO "p5100" // 16 bits at most
@@ -19,7 +20,7 @@
 
 #define DMESG_FILE "/var/log/dmesg" /* absolete */
 
-#define HTTP_SERVER SERVER_ID
+#define HTTP_SERVER "192.168.16.90"
 #define IMAGE_KERNEL "zImage-16sf"
 #define IMAGE_DISK  "cramfs-16sf.img"
 
