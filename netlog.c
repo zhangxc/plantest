@@ -28,10 +28,11 @@ extern struct vars * const v;
 extern struct plantest_operations ptos[];
 
 extern int syslog(char *, ...);
-extern int wait_for_netcmd(void);
+extern int wait_for_cmd(void);
+extern int recv_netcmd(struct netcmd_struct *);
 
 int confd = 0; // Hold the socket to plantest server
-static struct sockaddr_in consa;
+struct sockaddr_in consa;
 
 static int get_systime(struct tm *tm)
 {
@@ -46,10 +47,10 @@ static int get_systime(struct tm *tm)
 }
 
 
-static int validate_reply(struct netcmd_struct r)
+static int validate_reply(struct netcmd_struct *r)
 {
-	PDEBUG("%s: cmd %8x\n", __FUNCTION__, r.cmd);
-	if (r.cmd == NC_VERIFY)
+	PDEBUG("%s: cmd %8x\n", __FUNCTION__, r->cmd);
+	if (r->cmd == NC_VERIFY)
 		return 0;
 	else
 		return 1;
@@ -67,13 +68,11 @@ static int send_netlog(struct netlog_struct *log)
 		// delay
 		if (log->type == LOGTYPE_VRY) 
 			return 0;
-		recvfrom(confd, (void*) &reply, sizeof(struct netcmd_struct), 
-			 0, NULL, NULL);
-		if (validate_reply(reply) == 0)
+		recv_netcmd(&reply);
+		if (validate_reply(&reply) == 0)
 			return 0;
 	}
 
-	syslog(SYS_ERROR "Error sending log to %s\n", v->servd);
 	return 1;
 }
 
@@ -139,7 +138,27 @@ int netlog(int errcode, int type)
 
 	send_netlog(&msg);
 
-//	fclose(fp);
+	fclose(fp);
+	return 0;
+}
+
+/* netlog_init:
+ *
+ *   an simplified netlog(), but force to get reponsed 
+ */
+int netlog_init(void)
+{
+	struct netlog_struct nlog;
+
+	bzero(&nlog, sizeof(nlog));
+	nlog.type = LOGTYPE_INIT;
+
+	while (send_netlog(&nlog)) {
+		printf(".");
+		fflush(stdout);
+	}
+	printf("\n");
+
 	return 0;
 }
 
@@ -199,7 +218,7 @@ int init_netlog(void)
 	 */
 	PDEBUG("plantest protocol: set rtc time during initialization\n");
 	netlog_init();
-	if (wait_for_netcmd() != NC_SET_RTC)
+	if (wait_for_cmd() != NC_SET_RTC)
 		return 4;
 
 	return 0;

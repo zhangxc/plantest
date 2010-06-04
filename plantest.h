@@ -6,12 +6,10 @@
 #include <time.h>
 #include "config.h"
 
-#undef PDEBUG
-#ifdef PT_DEBUG
-#  define PDEBUG(fmt, args ...) fprintf(stdout, fmt, ##args);
-#else
-#  define PDEBUG(fmt, args ...)
-#endif
+extern struct vars * const v;
+#define PDEBUG(fmt, args ...)			\
+	if (v->debug)				\
+		fprintf(stdout, fmt, ##args);
 
 #define NB_OF(arr) sizeof(arr)/sizeof(arr[0])
 

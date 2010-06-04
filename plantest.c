@@ -21,7 +21,7 @@ extern struct plantest_operations *init_pto(char[]);
 extern int init_netlog(void);
 extern void exit_netlog(void);
 extern int report_netlog(void);
-extern int wait_for_netcmd(void);
+extern int wait_for_cmd(void);
 extern int syslog(char *msg, ...);
 
 #define VERSION "0.0.1"
@@ -145,10 +145,10 @@ int main(int argc, char **argv)
 #endif
 		switch(tseq[v->i_tst].pattern) {
 		case 1:
-//			result = pto->memtest();
+			result = pto->memtest();
 			break;
 		case 2:
-//			result = pto->mtdtest();
+			result = pto->mtdtest();
 			break;
 		case 3:
 			result = pto->modtest();
@@ -194,7 +194,7 @@ void display_header()
 void display_ui()
 {
 	printf("\r");
-	printf("[%4d.%4d] %d/%d %s", 
+	printf("[%4d.%4d] %d/%lu %s", 
 	       v->pass, v->ecounts, v->i_tst+1, 
 	       NB_OF(tseq) - 1, tseq[v->i_tst].info);
 	printf("\r");
@@ -215,7 +215,7 @@ void do_tick()
 	report_netlog();
 
 	// check the socket to see if comes the commands from the server
-	wait_for_netcmd();
+	wait_for_cmd();
 }
 
 

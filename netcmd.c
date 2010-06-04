@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "plantest.h"
 #include "syslog.h"
@@ -27,44 +28,53 @@ extern int netlog(int errcode, int type);
  *     0,  select() timeout (means no command received)
  *    -1,  select() return with error
  *    -2,  recvfrom() with errors
- *    -3,  inavaild command
- *    NC_VERIFY,  verify received
- *    NC_UPGRADE, upgrade executed
- *    NC_SET_RTC, set_rtc executed
+ *     n,  number of bytes received;
  */
-int wait_for_netcmd(void)
+int recv_netcmd(struct netcmd_struct *nc)
 {
-	struct netcmd_struct c;
 	int n;
-	fd_set rset;
-	int maxfdpl;
-	struct timeval timeout = { TICK_TIMEOUT, 0 };
 	int ret = 0;
+	int maxfdpl;
+	
+	fd_set rset;
+	struct timeval timeout = { TICK_TIMEOUT, 0 };
 
 	FD_ZERO(&rset);
 	FD_SET(confd, &rset);
 	maxfdpl = confd + 1;
 
 	if (select(maxfdpl, &rset, NULL, NULL, &timeout) < 0) {
-		syslog("select error\n");
+		syslog(SYS_ERROR "select error\n");
 		return -1;
 	}
 
 	if (FD_ISSET(confd, &rset)) {
-		n = recvfrom(confd, (struct netcmd_struct *)&c, 
-			 sizeof(struct netcmd_struct), 0, NULL, NULL);
-		if (n == 0) {
+		socklen_t len = sizeof(consa);
+		n = recvfrom(confd, (void *)nc, sizeof(*nc), 0, 
+			     (struct sockaddr *)&consa, &len);
+		if (n < 0) {
+			syslog(SYS_ERROR "recvfrom error\n");
+			ret = -2;
 			goto NO_CMD_RECEIVED;
-		} else if (n < 0) {
-			syslog("error when performing recvfrom\n");
-			return -2;
 		}
 
-		PDEBUG("%s: cmd %8x\n", __FUNCTION__, c.cmd);
-		if (c.cmd != NC_VERIFY)
-			netlog_vry();
+		PDEBUG("%s: cmd %8x\n", __FUNCTION__, nc->cmd);
+		ret = n;
+	}
 
-		switch(c.cmd) {
+NO_CMD_RECEIVED:
+	FD_ZERO(&rset);
+	return ret;
+}
+
+
+int wait_for_cmd(void)
+{
+	int ret = 0;
+	struct netcmd_struct nc;
+
+	if (recv_netcmd(&nc))
+		switch(nc.cmd) {
 		case NC_VERIFY:
 			ret = NC_VERIFY;
 			break;
@@ -73,16 +83,14 @@ int wait_for_netcmd(void)
 			ret = NC_UPGRADE;
 			break;
 		case NC_SET_RTC:
-			pto->set_rtc(c.rtctime);
+			pto->set_rtc(nc.rtctime);
 			ret = NC_SET_RTC;
 			break;
-		default:
+                default:
 			netlog_err(NL_NETCMD_BAD_FORMAT);
 			ret = -3;
 			break;
-		}
-	}
+                }
 
-NO_CMD_RECEIVED:
 	return ret;
 }
