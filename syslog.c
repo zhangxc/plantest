@@ -53,6 +53,7 @@ int syslog(char *fmt, ...)
 
 	bzero(mp, size);
 	strncat(mp, p, size);
+	if (sysloged == 0)
 		printf("\n");
 	vfprintf(fout, mp,  args);
 

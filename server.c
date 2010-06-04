@@ -71,8 +71,8 @@ int main(void)
 
 
 		//DEBUG routine
-		if (nlog.type == LOGTYPE_ERROR && nlog.errcode == NL_DEFAULT)
-			break;
+//		if (nlog.type == LOGTYPE_ERROR && nlog.errcode == NL_DEFAULT)
+//			break;
 	}
 
 	return 0;

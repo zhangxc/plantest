@@ -63,12 +63,12 @@ int get_rtctime(struct tm *tm)
 
 	if (!(fp = fopen(RTC_DEV_FILE, "r"))) {
 		netlog_err(NL_RTC_NO_DEV_FILE);
-		syslog(SYS_ERROR "cannot open %s\n", RTC_DEV_FILE);
+		syslog(SYS_ERROR "Cannot open %s\n", RTC_DEV_FILE);
 		return 1;
 	}
 	if (!fgets(buffer, RTC_LENGTH, fp)) {
 		netlog_err(NL_RTC_BAD_FORMAT);
-		syslog(SYS_ERROR "wrong RTC format\n");
+		syslog(SYS_ERROR "Wrong RTC format\n");
 		return 2;
 	}
 
@@ -124,7 +124,6 @@ int ks8695_memtest(void)
 
 	msize = 4*1024*1024;
 	if (memtest_chksum(mem, msize) != 0) {
-		PDEBUG("can you see me");
 		netlog_err(NL_MEM_CHECKSUM);
 		ret = 3;
 		goto DONE;
@@ -260,8 +259,8 @@ int ks8695_dmgchck(void)
 	}
 
 	// check the dmesg buffer
-	for (i = 0; i < NB_OF(*needle); i++, *nd++) {
-		if (!strstr(buf, *nd))
+	for (i = 0; i < NB_OF(needle); i++) {
+		if (!strcasestr(buf, *nd++))
 			continue;
 
 		// capture the needle
@@ -277,6 +276,7 @@ int ks8695_dmgchck(void)
 			netlog_err(NL_DMG_ERROR);
 			break;
 		default:
+			netlog_err(NL_DEFAULT);
 			break;
 		}
 	}
@@ -310,7 +310,7 @@ void ks8695_sysupdate(void)
 	cmdline[5] = st5;
 
 	if (exec_cmdlines(cmdline))
-		syslog("%s: shell excution with errors\n", __FUNCTION__);
+		syslog("%s: Shell excution with errors\n", __FUNCTION__);
 }
 
 
@@ -322,7 +322,7 @@ int ks8695_set_rtctime(char rtc[16])
 
 	str2tm(rtc, &tm);
 	if (validate_time(tm)) {
-		syslog(SYS_ERROR "invalid time %s\n", rtc);
+		syslog(SYS_ERROR "Invalid time %s\n", rtc);
 		netlog_err(NL_NETCMD_BAD_RTC);
 		return 1;
 	}

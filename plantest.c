@@ -22,7 +22,8 @@ extern int report_netlog(void);
 extern int wait_for_netcmd(void);
 extern int syslog(char *msg, ...);
 
-char *plantest_version = "0.1 beta";
+#define VERSION "0.0.1"
+#define AUTHOR "@Sunthink June, 2010"
 
 struct vars variables = {};
 struct vars * const v = &variables;
@@ -124,7 +125,8 @@ void display_ui()
 	printf("\r");
 	fflush(stdout);
 
-
+	/* ready to syslog */
+	sysloged = 0;
 }
 
 void clean_ui()

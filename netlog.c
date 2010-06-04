@@ -23,17 +23,17 @@
 #include "syslog.h"
 #include "netcmd.h"
 
-char clientid[20];
-char serverid[] = SERVER_ID;
-int  serverport = SERVER_PORT;
-
-int confd; // Hold the socket to plantest server
-static struct sockaddr_in consa;
-
 extern struct vars * const v;
 
 extern int syslog(char *, ...);
 extern int wait_for_netcmd(void);
+
+char clientid[20];
+char serverid[] = SERVER_ID;
+int  serverport = SERVER_PORT;
+
+int confd = 0; // Hold the socket to plantest server
+static struct sockaddr_in consa;
 
 static int get_systime(struct tm *tm)
 {
@@ -205,8 +205,6 @@ int init_netlog(void)
 	if (wait_for_netcmd() != NC_SET_RTC)
 		return 4;
 
-	PDEBUG("%s: local IP addr %s, MAC addr %s\n", 
-	       TEST_NETDEV, v->inaddr, v->hwaddr);
 	return 0;
 FAIL:
 	close(confd);
@@ -215,5 +213,6 @@ FAIL:
 
 void exit_netlog(void)
 {
-	close(confd);
+	if (confd)
+		close(confd);
 }
