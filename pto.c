@@ -17,8 +17,6 @@
 #include "netlog.h"
 #include "pto.h"
 
-extern char clientid[];
-extern char serverid[];
 extern struct vars * const v;
 extern unsigned long get_random(int seed);
 extern char *substr(char *str, char *sub, int i, int l);
@@ -97,6 +95,24 @@ int exec_cmdlines(char **commands)
 	return result;
 }
 
+/* plantest operations list */
+int ks8695_memtest(void);
+int ks8695_mtdtest(void);
+int ks8695_nettest(void);
+int ks8695_modtest(void);
+int ks8695_strtest(void);
+int ks8695_dmgchck(void);
+void ks8695_sysupdate(void);
+int ks8695_set_rtctime(char[]);
+
+struct plantest_operations ptos[] = {
+	/* Micrel Kendin's KS8695 */
+	{"p5100",  ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
+	{"mig100", ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
+	/* Intel IXP4xx */
+	{},
+};
+/* plantest operations list ends */
 
 int ks8695_memtest(void)
 {
@@ -170,7 +186,7 @@ int ks8695_mtdtest(void)
 
 	bzero(st1, 256);
 	sprintf(st1, "cd /tmp && wget -q http://%s/%s/%s",
-		HTTP_SERVER, TEST_PTO, MTD_TEST_FILE);
+		v->httpd, ptos[v->i_pto].ids, MTD_TEST_FILE);
 	cmd1[1] = st1;
 
 	if (exec_cmdlines(cmd1)) {
@@ -300,11 +316,11 @@ void ks8695_sysupdate(void)
 		""
 	};
 
-	sprintf(st1, "ifconfig eth0 %s up", clientid);
+	sprintf(st1, "ifconfig eth0 %s up", v->inaddr);
 	sprintf(st2, "cd /tmp && wget -q http://%s/%s/%s", 
-		HTTP_SERVER, TEST_PTO, IMAGE_KERNEL);
+		v->httpd, ptos[v->i_pto].ids, IMAGE_KERNEL);
 	sprintf(st5, "cd /tmp && wget -q http://%s/%s/%s", 
-		HTTP_SERVER, TEST_PTO, IMAGE_DISK);
+		v->httpd, ptos[v->i_pto].ids, IMAGE_DISK);
 	cmdline[1] = st1;
 	cmdline[2] = st2;
 	cmdline[5] = st5;
@@ -337,27 +353,19 @@ int ks8695_set_rtctime(char rtc[16])
 }
 
 
-static struct plantest_operations ptos[] = {
-	/* Micrel Kendin's KS8695 */
-	{"ks8695", ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
-	{"p5100",  ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
-	{"mig100", ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
-	/* Intel IXP4xx */
-	{},
-};
 
 
-struct plantest_operations *init_pto(void)
+struct plantest_operations *init_pto(char pto_ids[16])
 {
 	int i;
-	char *ids = TEST_PTO;
 	struct plantest_operations *pto = NULL;
 
-	for (i = 0; i < sizeof(ptos)/sizeof(ptos[0]); i++)
-		if (strcasecmp(ids, ptos[i].ids) == 0) {
+	for (i = 0; i < sizeof(ptos)/sizeof(ptos[0]); i++) {
+		if (!strcmp(pto_ids, ptos[i].ids)) {
 			pto = &ptos[i];
+			v->i_pto = i;
 			break;
 		}
-
+	}
 	return pto;
 }

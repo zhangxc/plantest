@@ -13,7 +13,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <net/if.h> // struct ifreq
+#include <net/if.h> 	/* struct ifreq */
 #include <netdb.h>
 #include <sys/ioctl.h>
 #include <sys/sysinfo.h>
@@ -22,15 +22,13 @@
 #include "netlog.h"
 #include "syslog.h"
 #include "netcmd.h"
+#include "pto.h"	/* for ptos */
 
 extern struct vars * const v;
+extern struct plantest_operations ptos[];
 
 extern int syslog(char *, ...);
 extern int wait_for_netcmd(void);
-
-char clientid[20];
-char serverid[] = SERVER_ID;
-int  serverport = SERVER_PORT;
 
 int confd = 0; // Hold the socket to plantest server
 static struct sockaddr_in consa;
@@ -75,7 +73,7 @@ static int send_netlog(struct netlog_struct *log)
 			return 0;
 	}
 
-	syslog(SYS_ERROR "Error sending log to %s\n", SERVER_ID);
+	syslog(SYS_ERROR "Error sending log to %s\n", v->servd);
 	return 1;
 }
 
@@ -118,7 +116,7 @@ int netlog(int errcode, int type)
 
 	// error code
 	msg.errcode = errcode;
-	strncpy(msg.product, TEST_PTO, strlen(TEST_PTO));
+	strncpy(msg.product, ptos[v->i_pto].ids, strlen(ptos[v->i_pto].ids) + 1);
 
 	sprintf(buffer, "%04d%02d%02d%02d%02d%02d%1d",
 		tm_rtc.tm_year + 1900, tm_rtc.tm_mon + 1, tm_rtc.tm_mday,
@@ -160,8 +158,8 @@ int init_netlog(void)
 	/* create a UDP socket to connect to the server */
 	bzero(&consa, sizeof(consa));
 	consa.sin_family = AF_INET;
-	consa.sin_port = htons(serverport);
-	inet_pton(AF_INET, serverid, &consa.sin_addr);
+	consa.sin_port = htons(v->port);
+	inet_pton(AF_INET, v->servd, &consa.sin_addr);
 
 	confd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (confd < 0) {
@@ -184,14 +182,13 @@ int init_netlog(void)
 		goto FAIL;
 	}
 
-	sprintf(v->hwaddr, "%02x:%02x:%02x:%02x:%02x:%02x%c",
+	sprintf(v->hwaddr, "%02x:%02x:%02x:%02x:%02x:%02x",
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[0],
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[1],
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[2],
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[3],
 		(unsigned char)ifreq.ifr_hwaddr.sa_data[4],
-		(unsigned char)ifreq.ifr_hwaddr.sa_data[5],
-		'\0');
+		(unsigned char)ifreq.ifr_hwaddr.sa_data[5]);
 
 	/* the initiazation netlog (plantest protocol):
 	 *   netlog_init to be the first datagram sent to server, some jobs to 

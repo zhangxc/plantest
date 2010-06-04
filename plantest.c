@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
+#include <getopt.h>
 
 #include "pto.h"
 #include "syslog.h"
@@ -15,7 +17,7 @@
 
 extern int sysloged;
 
-extern struct plantest_operations *init_pto(void);
+extern struct plantest_operations *init_pto(char[]);
 extern int init_netlog(void);
 extern void exit_netlog(void);
 extern int report_netlog(void);
@@ -43,12 +45,85 @@ void clean_ui(void);
 void cleanup(void);
 void do_tick(void);
 
+void usage(void)
+{
+	fprintf(stderr, "plantest %s %s\n", VERSION, AUTHOR);
+	fprintf(stderr, "Usage:\tplantest [Options...]\n\n");
+	fprintf(stderr, "  -s, --server=SERVER\n");
+	fprintf(stderr, "  -p, --port=SERVER_PORT\n");
+	fprintf(stderr, "  -t, --pto=PLAN\n");
+	fprintf(stderr, "  -w, --httpd=HTTPD\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "  -h, --help\n");
+}
+
 int main(int argc, char **argv)
 {
 	int result = 0;
+	int c;
+	char pto_ids[16];
 
-	// initialization
-	if (!(pto = init_pto())) {
+	/* Init 1. defaults argument */
+	strncpy(pto_ids, TEST_PTO, strlen(TEST_PTO) + 1);
+	strncpy(v->servd, SERVER_ID, strlen(SERVER_ID) + 1);
+	strncpy(v->httpd, HTTP_SERVER, strlen(HTTP_SERVER) + 1);
+	v->port = SERVER_PORT;
+	v->debug = 0;
+
+	while (1) {
+		int option_index = 0;
+		static struct option long_options[] = {
+			{"server", 1, 0, 's'},
+			{"port", 1, 0, 'p'},
+			{"debug", 0, 0, 0},
+			{"pto", 1, 0, 't'},
+			{"httpd", 1, 0, 'w'},
+			{"help", 0, 0, 'h'},
+			{0, 0, 0, 0},
+		};
+
+		c = getopt_long(argc, argv, "s:p:t:w:hT",
+				long_options, &option_index);
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case 0:
+			v->debug = 1;
+			break;
+		case 's':
+			bzero(v->servd, strlen(v->servd));
+			strncpy(v->servd, optarg, strlen(optarg) + 1);
+			break;
+		case 'p':
+			v->port = atoi(optarg);
+			break;
+		case 't':
+			bzero(pto_ids, strlen(pto_ids));
+			strncpy(pto_ids, optarg, strlen(optarg) + 1);
+			break;
+		case 'w':
+			bzero(v->httpd, strlen(v->httpd));
+			strncpy(v->httpd, optarg, strlen(optarg) + 1);
+			break;
+		case 'h':
+		default:
+			usage();
+			exit(1);
+			break;
+		}
+	}
+
+	if (optind < argc) {
+		printf("non-option ARGV-elements: ");
+		while (optind < argc)
+			printf("%s ", argv[optind++]);
+		printf("\n");
+		exit(1);
+	}
+
+	/* Init 2. extern inits */
+	if (!(pto = init_pto(pto_ids))) {
 		syslog(SYS_FATAL "pto initiazation error, check this out!\n");
 		exit(1);
 	}
@@ -70,10 +145,10 @@ int main(int argc, char **argv)
 #endif
 		switch(tseq[v->i_tst].pattern) {
 		case 1:
-			result = pto->memtest();
+//			result = pto->memtest();
 			break;
 		case 2:
-			result = pto->mtdtest();
+//			result = pto->mtdtest();
 			break;
 		case 3:
 			result = pto->modtest();
@@ -111,9 +186,9 @@ int main(int argc, char **argv)
 
 void display_header()
 {
-	printf("server - ip %s:%d\n", SERVER_ID, SERVER_PORT);
+	printf("server - ip %s:%d\n", v->servd, v->port);
 	printf("client - ip %s:%d, hw %s, %s\n", 
-	       v->inaddr, SERVER_PORT, v->hwaddr, TEST_NETDEV);
+	       v->inaddr, v->port, v->hwaddr, TEST_NETDEV);
 }
 
 void display_ui()

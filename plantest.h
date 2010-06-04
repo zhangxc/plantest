@@ -22,13 +22,18 @@ struct tseq_struct {
 };
 
 struct vars {
-	int i_tst; // current running test
+	int i_tst;		/* current running test */
 	int i_pto;
 	int pass;
 	int ecounts;
 
-	char inaddr[16];     /* IP  address */
-	char hwaddr[18];     /* Mac address */
+	int  port;
+	char inaddr[16];	/* IP  address */
+	char hwaddr[18];	/* Mac address */
+	char servd[16];		/* Server address */
+	char httpd[16];		/* HTTP server */
+
+	int debug;		/* debug mode */
 };
 
 /* lib.c */
