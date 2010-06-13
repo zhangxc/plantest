@@ -28,7 +28,7 @@ struct netlog_struct {
 
 #define netlog_err(errcode)  netlog(errcode, LOGTYPE_ERROR)
 #define netlog_vry()   netlog(0, LOGTYPE_VRY)
-//#define netlog_init()  netlog(0, LOGTYPE_INIT) /* improved implementation */
+#define netlog_init()  netlog(0, LOGTYPE_INIT)
 #define netlog_tick()  netlog(0, LOGTYPE_TICK)
 
 /* errcode, 32 bits 

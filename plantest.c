@@ -140,9 +140,10 @@ int main(int argc, char **argv)
 	// processing the test
 	{
 	do_test:
-#ifndef PT_DEBUG
-		display_ui();
-#endif
+
+		if (v->debug == 0)
+			display_ui();
+
 		switch(tseq[v->i_tst].pattern) {
 		case 1:
 			result = pto->memtest();

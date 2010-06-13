@@ -136,29 +136,21 @@ int netlog(int errcode, int type)
 	strncpy(msg.inaddr, v->inaddr, 16);
 	strncpy(msg.hwaddr, v->hwaddr, 18);
 
-	send_netlog(&msg);
+	
+	if (type == LOGTYPE_INIT) {
+		/* netlog_init:
+		 *
+		 *   an simplified netlog(), but force to get reponsed 
+		 */
+		while (send_netlog(&msg)) {
+			printf(".");
+			fflush(stdout);
+		}
+		printf("\n");
+	} else 
+		send_netlog(&msg);
 
 	fclose(fp);
-	return 0;
-}
-
-/* netlog_init:
- *
- *   an simplified netlog(), but force to get reponsed 
- */
-int netlog_init(void)
-{
-	struct netlog_struct nlog;
-
-	bzero(&nlog, sizeof(nlog));
-	nlog.type = LOGTYPE_INIT;
-
-	while (send_netlog(&nlog)) {
-		printf(".");
-		fflush(stdout);
-	}
-	printf("\n");
-
 	return 0;
 }
 
@@ -218,8 +210,7 @@ int init_netlog(void)
 	 */
 	PDEBUG("plantest protocol: set rtc time during initialization\n");
 	netlog_init();
-	if (wait_for_cmd() != NC_SET_RTC)
-		return 4;
+	while (wait_for_cmd() != NC_SET_RTC);
 
 	return 0;
 FAIL:
