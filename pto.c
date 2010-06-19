@@ -58,6 +58,7 @@ int get_rtctime(struct tm *tm)
 {
 	FILE *fp;
 	char buffer[16]; /* must fit netlog_struct definition */
+	int ret;
 
 	if (!(fp = fopen(RTC_DEV_FILE, "r"))) {
 		netlog_err(NL_RTC_NO_DEV_FILE);
@@ -67,11 +68,13 @@ int get_rtctime(struct tm *tm)
 	if (!fgets(buffer, RTC_LENGTH, fp)) {
 		netlog_err(NL_RTC_BAD_FORMAT);
 		syslog(SYS_ERROR "Wrong RTC format\n");
-		return 2;
+		ret = 2;
+		goto GET_RTCTIME_FAIL;
 	}
 
 	str2tm(buffer, tm);
-
+GET_RTCTIME_FAIL:
+	fclose(fp);
 	return 0;
 }
 

@@ -85,6 +85,7 @@ int netlog(int errcode, int type)
 	struct tm tm_sys, tm_rtc;
 	struct sysinfo info;
 	int updays, uphours, upmins;
+	int ret;
 
 	// A. rtc time "YYYYMMDDHHMMSSw"
 	if (!(fp = fopen(RTC_DEV_FILE, "r"))) {
@@ -93,7 +94,8 @@ int netlog(int errcode, int type)
 	}
 	if (!fgets(buffer, RTC_LENGTH, fp)) {
 		syslog(SYS_ERROR "Wrong RTC format\n");
-		return 2;
+		ret = 2;
+		goto NETLOG_FAIL;
 	}
 
 	// B. sys time "YYYYMMDDHHMMSSw"
@@ -149,7 +151,7 @@ int netlog(int errcode, int type)
 		printf("\n");
 	} else 
 		send_netlog(&msg);
-
+NETLOG_FAIL:
 	fclose(fp);
 	return 0;
 }
