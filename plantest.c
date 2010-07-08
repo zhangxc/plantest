@@ -61,10 +61,10 @@ int main(int argc, char **argv)
 {
 	int result = 0;
 	int c;
-	char pto_ids[16];
+	char pto_name[16];
 
 	/* Init 1. defaults argument */
-	strncpy(pto_ids, TEST_PTO, strlen(TEST_PTO) + 1);
+	strncpy(pto_name, TEST_PTO, strlen(TEST_PTO) + 1);
 	strncpy(v->servd, SERVER_ID, strlen(SERVER_ID) + 1);
 	strncpy(v->httpd, HTTP_SERVER, strlen(HTTP_SERVER) + 1);
 	v->port = SERVER_PORT;
@@ -99,8 +99,8 @@ int main(int argc, char **argv)
 			v->port = atoi(optarg);
 			break;
 		case 't':
-			bzero(pto_ids, strlen(pto_ids));
-			strncpy(pto_ids, optarg, strlen(optarg) + 1);
+			bzero(pto_name, strlen(pto_name));
+			strncpy(pto_name, optarg, strlen(optarg) + 1);
 			break;
 		case 'w':
 			bzero(v->httpd, strlen(v->httpd));
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Init 2. extern inits */
-	if (!(pto = init_pto(pto_ids))) {
+	if (!(pto = init_pto(pto_name))) {
 		syslog(SYS_FATAL "pto initiazation error, check this out!\n");
 		exit(1);
 	}
@@ -189,13 +189,13 @@ void display_header()
 {
 	printf("server - ip %s:%d\n", v->servd, v->port);
 	printf("client - ip %s:%d, hw %s, %s\n", 
-	       v->inaddr, v->port, v->hwaddr, TEST_NETDEV);
+	       v->inaddr, v->port, v->hwaddr, v->board->eth);
 }
 
 void display_ui()
 {
 	printf("\r");
-	printf("[%4d.%4d] %d/%lu %s", 
+	printf("[%4d.%4d] %d/%u %s", 
 	       v->pass, v->ecounts, v->i_tst+1, 
 	       NB_OF(tseq) - 1, tseq[v->i_tst].info);
 	printf("\r");
@@ -227,6 +227,6 @@ void cleanup()
 
 	// warning with alarm
 	if (v->ecounts)
-		(void)system("echo 1 > /dev/alarm");
+		system("echo 1 > /dev/alarm");
 			
 }

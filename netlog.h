@@ -63,6 +63,7 @@ struct netlog_struct {
 #define NL_LIBC_MKTIME		18 << 16
 #define NL_LIBC_STATFS		19 << 16
 #define NL_LIBC_KLOGCTL		20 << 16
+#define NL_LIBC_OPEN		21 << 16
 
 #define NL_NETCMD_BAD_FORMAT	32 << 16	// 服务器的格式命令错误
 #define NL_NETCMD_BAD_RTC       33 << 16

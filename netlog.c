@@ -88,11 +88,11 @@ int netlog(int errcode, int type)
 	int ret;
 
 	// A. rtc time "YYYYMMDDHHMMSSw"
-	if (!(fp = fopen(RTC_DEV_FILE, "r"))) {
-		syslog(SYS_ERROR "Cannot open "RTC_DEV_FILE"\n");
+	if (!(fp = fopen(v->board->rtc_file, "r"))) {
+		syslog(SYS_ERROR "Cannot open %s\n", v->board->rtc_file);
 		return 1;
 	}
-	if (!fgets(buffer, RTC_LENGTH, fp)) {
+	if (!fgets(buffer, 16, fp)) {
 		syslog(SYS_ERROR "Wrong RTC format\n");
 		ret = 2;
 		goto NETLOG_FAIL;
@@ -117,7 +117,7 @@ int netlog(int errcode, int type)
 
 	// error code
 	msg.errcode = errcode;
-	strncpy(msg.product, ptos[v->i_pto].ids, strlen(ptos[v->i_pto].ids) + 1);
+	strncpy(msg.product, v->board->name, strlen(v->board->name) + 1);
 
 	sprintf(buffer, "%04d%02d%02d%02d%02d%02d%1d",
 		tm_rtc.tm_year + 1900, tm_rtc.tm_mon + 1, tm_rtc.tm_mday,
@@ -181,7 +181,7 @@ int init_netlog(void)
 	}
 
 	/* fetch the ip addr of net device */
-	strcpy(ifreq.ifr_name, TEST_NETDEV);
+	strcpy(ifreq.ifr_name, v->board->eth);
 	if (ioctl(confd, SIOCGIFADDR, (char *)&ifreq) < 0) {
 		syslog(SYS_ERROR "Ioctl with an error\n");
 		ret = 2;

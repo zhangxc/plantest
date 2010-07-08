@@ -60,12 +60,13 @@ int get_rtctime(struct tm *tm)
 	char buffer[16]; /* must fit netlog_struct definition */
 	int ret;
 
-	if (!(fp = fopen(RTC_DEV_FILE, "r"))) {
+	if (!(fp = fopen(v->board->rtc_file, "r"))) {
 		netlog_err(NL_RTC_NO_DEV_FILE);
-		syslog(SYS_ERROR "Cannot open %s\n", RTC_DEV_FILE);
+		syslog(SYS_ERROR "Cannot open %s\n", v->board->rtc_file);
 		return 1;
 	}
-	if (!fgets(buffer, RTC_LENGTH, fp)) {
+	/* fetch 16 chars YYYYMMDDhhmmssW */
+	if (!fgets(buffer, 16, fp)) {
 		netlog_err(NL_RTC_BAD_FORMAT);
 		syslog(SYS_ERROR "Wrong RTC format\n");
 		ret = 2;
@@ -106,14 +107,17 @@ int ks8695_modtest(void);
 int ks8695_strtest(void);
 int ks8695_dmgchck(void);
 void ks8695_sysupdate(void);
+void null_sysupdate(void);
 int ks8695_set_rtctime(char[]);
+
+#include "board.c"
 
 struct plantest_operations ptos[] = {
 	/* Micrel Kendin's KS8695 */
-	{"p5100",  ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
-	{"mig100", ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
+	{&p5100_bd,  ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
+	{&mig200_bd, ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, ks8695_sysupdate, ks8695_set_rtctime},
+	{&secway8695_bd, ks8695_memtest, ks8695_mtdtest, ks8695_nettest, ks8695_modtest, ks8695_strtest, ks8695_dmgchck, null_sysupdate, ks8695_set_rtctime},
 	/* Intel IXP4xx */
-	{},
 };
 /* plantest operations list ends */
 
@@ -124,15 +128,17 @@ int ks8695_memtest(void)
 	unsigned long msize;
 	int ret = 0;
 
-	/* capacity check */
+	/* capacity check
+	 * WARNING: just test 9/10 of memory area
+	 */
 	sysinfo(&info);
-	if (info.totalram < (TEST_MEMSIZE/10)*9) {
+	if (info.totalram < (v->board->memsize / 10) * 9) {
 		netlog_err(NL_MEM_SIZE);
 		return 1;
 	}
 
 	/* memory test */
-	msize = (info.freeram/10) * 9;
+	msize = (info.freeram / 10) * 9;
 	mem = (char *)malloc(msize);
 	if (!mem) {
 		syslog(SYS_ERROR "malloc error");
@@ -157,56 +163,55 @@ int ks8695_mtdtest(void)
 {
 	struct statfs stat;
 	unsigned long mtdsize = 0;
-	int result;
-	char st1[256];
-
-	if (statfs(MTD_MNT_POINT, &stat)) {
+	int ret = 0;
+	int fsize;
+	FILE *fp;
+	unsigned long sum = 0, nd = 0;
+	unsigned long buf = 0;
+	
+	if (statfs("/", &stat)) {
 		syslog(SYS_ERROR "statfs error");
 		netlog_err(NL_LIBC_STATFS);
 		return 1;
 	}
 
-	mtdsize = (stat.f_bsize / 1024) * stat.f_blocks;
-	if (mtdsize <= ((TEST_MTDSIZE/1024)/4) * 3) {
+	mtdsize = stat.f_bsize * stat.f_blocks;
+	if (mtdsize <= (v->board->mtdsize / 4) * 3) {
 		PDEBUG("mtdsize %08lx\n", mtdsize);
 		netlog_err(NL_MTD_SIZE);
 		return 2;
 	}
 
 	// make some simple file operations to check MTD file system
-	char *cmd1[] = {
-		"mount -t tmpfs none /tmp",
-		NULL,
-		"cp /tmp/"MTD_TEST_FILE" /",
-		"",
-	};
-
-	char *cmd0[] = {
-		"rm -f /"MTD_TEST_FILE,
-		"umount /tmp",
-		"",
-	};
-
-	bzero(st1, 256);
-	sprintf(st1, "cd /tmp && wget -q http://%s/%s/%s",
-		v->httpd, ptos[v->i_pto].ids, MTD_TEST_FILE);
-	cmd1[1] = st1;
-
-	if (exec_cmdlines(cmd1)) {
-		syslog("%s: shell excution with errors\n", __FUNCTION__);
+	/* read and append the file */
+	fp = fopen("/mtdtest_9m", "w+");
+	if (!fp) {
+		netlog_err(NL_LIBC_OPEN);
 		return 3;
 	}
-	result = system("cmp /"MTD_TEST_FILE" /tmp/"MTD_TEST_FILE);
-	if (result != 0) {
+
+	/* write the file */
+	fsize = stat.f_bsize * stat.f_bfree;
+	/* WARNING: we dont need to test all mtd area(9/10) */
+	fsize = (fsize / 10) * 9;
+	while ((fsize -= 4) > 0) {
+		buf = get_random(fsize * time(NULL));
+		fwrite((void *)&buf, 4, 1, fp);
+		sum += buf;
+	}
+
+	rewind(fp);
+	while (fread((void*)&buf, 4, 1, fp) == 1) {
+		nd += buf;
+	}
+	if (sum != nd) {
 		netlog_err(NL_MTD_RWCHECK);
-		return 4;
+		ret = 3;
 	}
-	if (exec_cmdlines(cmd0)) {
-		syslog("%s: shell excution with errors\n", __FUNCTION__);
-		return 3;
-	}
-
-	return 0;
+	/* read the file */
+	remove("/mtdtest_9m");
+	fclose(fp);
+	return ret;
 }
 
 int ks8695_nettest(void)
@@ -321,9 +326,9 @@ void ks8695_sysupdate(void)
 
 	sprintf(st1, "ifconfig eth0 %s up", v->inaddr);
 	sprintf(st2, "cd /tmp && wget -q http://%s/%s/%s", 
-		v->httpd, ptos[v->i_pto].ids, IMAGE_KERNEL);
+		v->httpd, v->board->name, v->board->kernel);
 	sprintf(st5, "cd /tmp && wget -q http://%s/%s/%s", 
-		v->httpd, ptos[v->i_pto].ids, IMAGE_DISK);
+		v->httpd, v->board->name, v->board->kdisk);
 	cmdline[1] = st1;
 	cmdline[2] = st2;
 	cmdline[5] = st5;
@@ -332,6 +337,10 @@ void ks8695_sysupdate(void)
 		syslog("%s: Shell excution with errors\n", __FUNCTION__);
 }
 
+void null_sysupdate(void)
+{
+	/* do nothing ... */
+}
 
 int ks8695_set_rtctime(char rtc[16])
 {
@@ -346,7 +355,7 @@ int ks8695_set_rtctime(char rtc[16])
 		return 1;
 	}
 
-	sprintf(cmd, "echo %s > %s", rtc, RTC_DEV_FILE);
+	sprintf(cmd, "echo %s > %s", rtc, v->board->rtc_file);
 	result = system(cmd);
 	if (result != 0) {
 		netlog_err(NL_NETCMD_SET_RTC);
@@ -358,17 +367,21 @@ int ks8695_set_rtctime(char rtc[16])
 
 
 
-struct plantest_operations *init_pto(char pto_ids[16])
+struct plantest_operations *init_pto(char pto_name[16])
 {
 	int i;
 	struct plantest_operations *pto = NULL;
 
 	for (i = 0; i < sizeof(ptos)/sizeof(ptos[0]); i++) {
-		if (!strcmp(pto_ids, ptos[i].ids)) {
-			pto = &ptos[i];
-			v->i_pto = i;
+		pto = &ptos[i];
+
+		if (!pto || !(pto->bds))
+			continue;
+		if (!strcmp(pto_name, pto->bds->name)) {
+			v->pto = pto;
+			v->board = pto->bds;
 			break;
 		}
 	}
-	return pto;
+	return v->pto;
 }
